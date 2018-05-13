@@ -1,0 +1,17 @@
+/Bloc.class
+/Blockchain.class
+/Client.class
+/DistributedBC.class
+/FindHash.class
+/NoeudBloc.class
+/NoeudParticipant.class
+/Serveur.class
+/Transaction.class
+/User.class
+/.classpath
+/.project
+/*.old
+/*.tmp
+/sig
+/suepk
+/wesh.txt
