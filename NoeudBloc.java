@@ -2,6 +2,8 @@ import java.util.Vector;
 import java.rmi.server.UnicastRemoteObject;
 import java.rmi.RemoteException;
 import java.math.BigDecimal;
+import java.util.Timer;
+import java.util.Random;
 
 
 public class NoeudBloc
@@ -14,6 +16,10 @@ public class NoeudBloc
   private Vector<Transaction> transactionsAttente;
   private Vector<NoeudBloc> voisins;
   private int maxPart = 3;
+  private BigDecimal recompense;
+  Timer timer;
+  Random rand;
+
 
   public NoeudBloc() throws RemoteException{
     super();
@@ -21,6 +27,9 @@ public class NoeudBloc
     participantsInscrits = new Vector<Integer>();
     meriteParticipants = new Vector<BigDecimal>();
     voisins = new Vector<NoeudBloc>();
+    recompense = new BigDecimal("1");
+    rand = new Random();
+    ajouterBloc();
   }
 
   ///////////////fonctions distribuées nparticipant -> nbloc /////////////////////////////
@@ -59,7 +68,7 @@ public class NoeudBloc
     if(from==0){
       transactionsAttente.addElement(new Transaction(from, to, montant.setScale(2, BigDecimal.ROUND_HALF_EVEN)));
       System.out.println("Transaction ajoutée, de " + from + " à " + to + ", " + montant.setScale(2, BigDecimal.ROUND_HALF_EVEN).toString() + " points");
-      ajouterBloc();
+      //ajouterBloc();
       return true;
     }
 
@@ -80,7 +89,7 @@ public class NoeudBloc
 
       transactionsAttente.addElement(new Transaction(from, to, montant.setScale(2, BigDecimal.ROUND_HALF_EVEN)));
       System.out.println("Transaction ajoutée, de " + from + " à " + to + ", " + montant.setScale(2, BigDecimal.ROUND_HALF_EVEN).toString() + " points");
-      ajouterBloc();
+      //ajouterBloc();
 
       return true;
 
@@ -160,10 +169,18 @@ public class NoeudBloc
   /////////////////fonctions propres/////////////////////////////
 
   //pas forcement utile, verbeux pour rien, juste mettre contenu dans ajouter bloc
-  public Bloc creerBloc(){
+  public Bloc creerBloc()
+    throws RemoteException
+  {
+    if(transactionsAttente.size()==0){
+      return null;
+    }
     Bloc b = bc.addBlock(transactionsAttente);
+    distribuerRecompense(recompense);
     transactionsAttente.clear();
     transmettreBloc(b);
+    System.out.println("Nouveau bloc");
+    printBC();
     return b;
     //Bloc nb = new Bloc(transactionsAttente,;
   }
@@ -198,10 +215,9 @@ public class NoeudBloc
 
   //fonction pour ajouter un bloc tous les random secondes ou autre
   public void ajouterBloc(){
-    if(transactionsAttente.size()>=3){
-      creerBloc();
-      System.out.println("Ajout d'un bloc !");
-    }
+    int r = 10 + rand.nextInt(10);
+    timer = new Timer();
+    timer.schedule(new BlockGeneration(this), r*1000);
   }
 
   private void transmettreBC(NoeudBloc n){
@@ -229,6 +245,7 @@ public class NoeudBloc
   }
 
   private void receptionBloc(Bloc b){
+    timer.cancel();
     nettoyerTrAttente(b);
     bc.addBlock(b);
     //transferer bloc aux voisins
@@ -263,6 +280,14 @@ public class NoeudBloc
 
   public void setTr(Vector<Transaction> _tr){
     transactionsAttente = _tr;
+  }
+
+  private void distribuerRecompense(BigDecimal aPartager)
+    throws RemoteException
+  {
+    for(int i = 0; i<meriteParticipants.size(); i++){
+      payer(0, participantsInscrits.elementAt(i), meriteParticipants.elementAt(i).multiply(aPartager).floatValue());
+    }
   }
 
 
