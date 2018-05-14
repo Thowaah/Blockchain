@@ -5,21 +5,26 @@ import java.math.BigDecimal;
 import java.util.Timer;
 import java.util.Random;
 import java.math.MathContext;
+import java.util.Map;
+import java.util.HashMap;
+
+
 
 
 public class NoeudBloc
   extends UnicastRemoteObject
-  implements DistributedBC
+  implements DistributedBC, InterfaceNoeudsBlocs
 {
   private Vector<Integer> participantsInscrits;
   private Vector<BigDecimal> meriteParticipants;
   public Blockchain bc;
   private Vector<Transaction> transactionsAttente;
-  private Vector<NoeudBloc> voisins;
+  //private Vector<NoeudBloc> voisins;
   private int maxPart = 3;
   private BigDecimal recompense;
-  Timer timer;
-  Random rand;
+  private Timer timer;
+  private Random rand;
+  private Map<Integer,String> voisins;
 
 
   public NoeudBloc() throws RemoteException{
@@ -27,11 +32,48 @@ public class NoeudBloc
     transactionsAttente = new Vector<Transaction>();
     participantsInscrits = new Vector<Integer>();
     meriteParticipants = new Vector<BigDecimal>();
-    voisins = new Vector<NoeudBloc>();
+    voisins = new HashMap<Integer,String>();
     recompense = new BigDecimal("1");
     rand = new Random();
     ajouterBloc();
   }
+  ///////////////fonctions distribuées nbloc -> nbloc///////////////////////////////////
+  public void hello(int id, String ip)
+    throws RemoteException
+  {
+    if(!voisins.containsKey(new Integer(id))) {
+      voisins.put(id, ip);
+    } else return;
+  }
+
+  public void transmettreTr(Transaction tr)
+    throws RemoteException
+  {
+    envoyerTransaction(tr);
+    for(int i=0; i<transactionsAttente.size(); i++){
+      if(transactionsAttente.elementAt(i).equals(tr)) return;
+    }
+    transactionsAttente.addElement(tr);
+  }
+
+  public void transmettreBloc(Bloc b)
+    throws RemoteException
+  {
+    timer.cancel();
+    nettoyerTrAttente(b);
+    //verifier pour les doublons
+    bc.addBlock(b);
+    //transferer bloc aux voisins
+    envoyerBloc(b);
+  }
+
+  public Blockchain demandeBC()
+    throws RemoteException
+  {
+    return bc;
+  }
+
+
 
   ///////////////fonctions distribuées nparticipant -> nbloc /////////////////////////////
 
@@ -180,6 +222,7 @@ public class NoeudBloc
     if(transactionsAttente.size()==0){
       return null;
     }
+    distribuerRecompense(recompense);
     Bloc b = bc.addBlock(transactionsAttente);
     distribuerRecompense(recompense);
     transactionsAttente.clear();
@@ -189,14 +232,9 @@ public class NoeudBloc
     return b;
     //Bloc nb = new Bloc(transactionsAttente,;
   }
-/*
-  private addBloc(Bloc b){
-    Bloc b = creerBloc();
-    transmettreBloc(b);
-  }*/
 
   public boolean checkBC(){
-    //verification blockchain
+    //verification blockchain avec hash
     return true;
   }
 
@@ -205,17 +243,18 @@ public class NoeudBloc
     return true;
   }
 
-  private void receptionTransaction(Transaction tr){
-    transmettreTransaction(tr);
-    transactionsAttente.addElement(tr);
-  }
-
-  private void transmettreTransaction(Transaction tr){
+  private void envoyerTransaction(Transaction tr){
     //envoyer la transaction aux voisins
+    for(int i = 0; i<voisins.size(); i++){
+      //se connecter à chacun et appeler le methode transmettreTr
+    }
   }
 
-  private void transmettreBloc(Bloc b){
-    //transmettre nouveau bloc créer aux autres noeuds
+  private void envoyerBloc(Bloc b){
+    //envoyer nouveau bloc créer aux autres noeuds
+    for(int i = 0; i<voisins.size(); i++){
+      //se connecter à chacun et appeler le methode transmettreBloc
+    }
   }
 
   //fonction pour ajouter un bloc tous les random secondes ou autre
@@ -225,14 +264,16 @@ public class NoeudBloc
     timer.schedule(new BlockGeneration(this), r*1000);
   }
 
-  private void transmettreBC(NoeudBloc n){
-    //envoyer BC à un autre noeud
-  }
-/*
+
   private Blockchain demanderBC(){
       //demander blockchain à tout le monde
-  }*/
+      for(int i = 0; i<voisins.size(); i++){
+        //on demande à tous le monde et celle qui est majoritaire est adoptée ?
+      }
+      return null; //a enlever, temporaire pour la compil'
+  }
 
+  //à vérifier
   private void nettoyerTrAttente(Bloc b){
     //à la reception d'un nouveau bloc, retirer les transactions effectuées de la liste des tr en attente
     Vector<Integer> suppr = new Vector<Integer>();
@@ -247,13 +288,6 @@ public class NoeudBloc
     for(int i=0; i<suppr.size();i++){
       transactionsAttente.remove(suppr.elementAt(i));
     }
-  }
-
-  private void receptionBloc(Bloc b){
-    timer.cancel();
-    nettoyerTrAttente(b);
-    bc.addBlock(b);
-    //transferer bloc aux voisins
   }
 
   private void choixBC(Blockchain bc2){
