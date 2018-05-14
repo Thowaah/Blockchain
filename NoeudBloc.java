@@ -167,38 +167,6 @@ public class NoeudBloc
     return participantsInscrits.size();
   }
 
-/*
-  public boolean payer(int from, int to, float _montant)
-    throws RemoteException
-  {
-    System.out.println("Tr reçu !");
-    float montant = _montant;
-    System.out.println("From " + from + " a " + to + " et veut envoyer " + montant);
-    if(from==0){
-      transactionsAttente.addElement(new Transaction(from, to, montant));
-      System.out.println("Transaction ajoutée, de " + from + " à " + to + ", " + montant + " points");
-      ajouterBloc();
-      return true;
-    } else {
-      System.out.println("Else");
-      if(bc.getPoints(from) >= montant) {
-        //System.out.println("RValue= " + r);
-
-        transactionsAttente.addElement(new Transaction(from, to, montant));
-        System.out.println("Transaction ajoutée, de " + from + " à " + to + ", " + montant + " points");
-        ajouterBloc();
-
-        return true;
-
-      } else {
-        //System.out.println("Passe pas ! RValue= " + bc.getPoints(from).compareTo(montant));
-        System.out.println("Transaction refusée, de " + from + ":"+ bc.getPoints(from) +" à " + to + ":"+ bc.getPoints(to) + ", " + montant + " points");
-        return false;
-      }
-    }
-  }
-  */
-
   public void printBC()
     throws RemoteException{
     System.out.println("Demande impression BC !");
@@ -310,6 +278,20 @@ public class NoeudBloc
 
   private void changerMerite(NoeudParticipant np, float m){
     //changer le mérite du participant np à m (et reajuster les autres)
+
+  }
+
+  //non testé
+  private void changerMerite(int p, float m){
+    if(m>1.0f) return;
+    meriteParticipants.set(p, new BigDecimal(m));
+    BigDecimal reste = new BigDecimal("1");
+    reste = reste.subtract(new BigDecimal(m));
+    for(int i=0; i<meriteParticipants.size(); i++){
+      if(i != p){
+        meriteParticipants.set(i,meriteParticipants.elementAt(i).multiply(reste, new MathContext(2)));
+      }
+    }
   }
 
 
