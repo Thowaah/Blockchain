@@ -4,6 +4,7 @@ import java.rmi.RemoteException;
 import java.math.BigDecimal;
 import java.util.Timer;
 import java.util.Random;
+import java.math.MathContext;
 
 
 public class NoeudBloc
@@ -45,6 +46,10 @@ public class NoeudBloc
     throws RemoteException
   {
     //verifier si il est pas déjà inscrit
+    for(int i=0; i<participantsInscrits.size(); i++){
+      if(id==participantsInscrits.elementAt(i)) return true;
+    }
+
     if(participantsInscrits.size() < maxPart){
       ajouterParticipant(id);
       return true;
@@ -263,7 +268,7 @@ public class NoeudBloc
     BigDecimal s = new BigDecimal(0);
     participantsInscrits.addElement(p);
     for(int i=0; i<n;i++){
-      meriteParticipants.set(i,(meriteParticipants.elementAt(i).multiply(new BigDecimal(n+1).divide(new BigDecimal(n)))));
+      meriteParticipants.set(i,(meriteParticipants.elementAt(i).divide(new BigDecimal(n+1),new MathContext(2)).multiply(new BigDecimal(n),new MathContext(2))));
       s = s.add(meriteParticipants.elementAt(i));
     }
     meriteParticipants.addElement(new BigDecimal(1).subtract(s));
