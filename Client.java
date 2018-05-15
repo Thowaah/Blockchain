@@ -2,6 +2,8 @@ import java.rmi.* ;
 import java.net.MalformedURLException ;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.math.BigDecimal;
+
 
 
 public class Client
@@ -25,6 +27,8 @@ public class Client
 
 
         boolean ins = bc.inscription(moi.getId());
+
+      //  bc.transmettreTr(new Transaction(1, 2, new BigDecimal(0.6f)));
 
         if(ins){
           System.out.println("Je suis inscrit !");

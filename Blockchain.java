@@ -1,6 +1,8 @@
 import java.util.ArrayList;
 import java.util.Vector;
 import java.math.BigDecimal;
+import java.rmi.* ;
+
 
 
 public class Blockchain{
@@ -10,7 +12,9 @@ public class Blockchain{
     this.bc = new ArrayList<Bloc>();
   }
 
-  public Bloc addBlock(Vector<Transaction> tr){
+  public Bloc addBlock(Vector<Transaction> tr)
+    throws RemoteException
+  {
     Bloc b;
     if(bc.size()==0){
       b = new Bloc(tr, 0);
@@ -43,6 +47,18 @@ public class Blockchain{
       s+= "\n--bloc " + i + "--\n" + b.toString() + "------------";
     }
     return s;
+  }
+
+  public boolean dejaDansBC(int hash){
+    if(bc.size()==0) return false;
+    for(int i=0; i<bc.size(); i++){
+      System.out.println("Compare "+bc.get(i).getHash()+" et "+hash);
+      if(bc.get(i).getHash()==hash){
+        System.out.println("Hash identiques");
+        return true;
+      }
+    }
+    return false;
   }
 
   public BigDecimal getPoints(int user){

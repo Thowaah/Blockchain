@@ -1,17 +1,28 @@
 import java.util.Vector;
 import java.math.BigDecimal;
+import java.rmi.server.UnicastRemoteObject;
+import java.rmi.* ;
+import java.io.Serializable;
 
 
-public class Bloc{
+
+
+
+public class Bloc implements Serializable{
   private Vector<Transaction> transactions;
   private int lastBlockHash = 0;
+  private final int hash;
 
-  public Bloc(Vector<Transaction> tr, int _lastBlockHash){
+  public Bloc(Vector<Transaction> tr, int _lastBlockHash)
+    throws RemoteException
+  {
+    super();
     transactions = new Vector<Transaction>();
     for(int i = 0; i<tr.size(); i++){
       transactions.addElement(tr.elementAt(i));
     }
     lastBlockHash = _lastBlockHash;
+    hash = this.hashCode();
   }
 
   public int getLastHash(){
@@ -20,7 +31,7 @@ public class Bloc{
 
   public int getHash(){
     //use lastBlockHash to calculate this block's hash
-    return this.hashCode();
+    return hash;
   }
 
   public int getNumTransactions(){

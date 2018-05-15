@@ -1,15 +1,19 @@
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.math.BigDecimal;
+import java.sql.Timestamp;
+
 
 public interface InterfaceNoeudsBlocs extends Remote{
   public void printBC() throws RemoteException;
   //public String ping() throws RemoteException;
 
-  //relier au voisin (echanger les IP ?)
+  //relier au voisin (echanger les IP ?) repndre avec l'id pour que l'expéditeur puisse ajouter l'autre
   public void hello(int id, String ip) throws RemoteException;
   //transfereTransaction
-  public void transmettreTr(Transaction tr) throws RemoteException;
+  public void transmettreTr(Transaction tr) throws RemoteException, InterruptedException;
+
+  public void transmettreTr(BigDecimal a, int from, int to, Timestamp time) throws RemoteException, InterruptedException;
   //getBC
   public Blockchain demandeBC() throws RemoteException;
   //transmetBloc

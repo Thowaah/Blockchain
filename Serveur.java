@@ -10,14 +10,32 @@ public class Serveur
 	{
   	try
 		{
-  			int port = 35000;
-			NoeudBloc objLocal = new NoeudBloc () ;
+      String adresse = args[0];
+  		int port = Integer.parseInt(args[1]);
+      int id = Integer.parseInt(args[2]);
+			NoeudBloc objLocal = new NoeudBloc (id, adresse + ":" + port);
 			Naming.rebind("rmi://localhost:" + port + "/DistributedBC",objLocal) ;
+      //Naming.rebind("rmi://localhost:" + port + "/InterfaceNoeudsBlocs",objLocal) ;
 			System.out.println("Serveur Bloc pret") ;
       test2(objLocal);
+      if(args.length > 3){
+        try{
+          DistributedBC nb = (DistributedBC) Naming.lookup("rmi://localhost:" + args[3] + "/DistributedBC");
+          //String addr = new String("localhost:" + args[1]);
+          String tmpStr = nb.hello(id, "localhost:" + args[1]);
+          String[] ret = tmpStr.split(" ");
+          int distId = Integer.parseInt(ret[0]);
+          //System.out.println(ret[1]);
+          objLocal.hello(distId , ret[1]);
+        } catch(NotBoundException e){
+          System.out.println("Problème de binding !\n"+e);
+          System.exit(1);
+        } catch(MalformedURLException e){ System.out.println(e);}
+      }
 		}
     catch (RemoteException re) { System.out.println(re) ; }
     catch (MalformedURLException e) { System.out.println(e) ; }
+    catch (InterruptedException ie) { System.out.println(ie);}
   }
 /*
   private static void test1(){

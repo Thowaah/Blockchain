@@ -4,9 +4,13 @@ import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.Signature;
 import java.math.BigDecimal;
+import java.rmi.* ;
+import java.rmi.server.UnicastRemoteObject;
+import java.io.Serializable;
 
 
-public class Transaction {
+
+public class Transaction  implements Serializable{
   private BigDecimal amount;
   private int fromHash;
   private int toHash;
@@ -26,7 +30,8 @@ public class Transaction {
 
   }
   */
-  public Transaction(int from, int to, BigDecimal _amount){
+  public Transaction(int from, int to, BigDecimal _amount) throws RemoteException
+  {
     amount = _amount;
     amount.setScale(2, BigDecimal.ROUND_HALF_EVEN);
     fromHash = from;
@@ -70,10 +75,11 @@ public class Transaction {
   //override methode equals -> comparer les transactions
 
   public boolean equals(Transaction other){
+    /*
     if(other==null) return false;
     if(other==this) return true;
     if (!(other instanceof Transaction))return false;
-
+*/
 
     if(time.compareTo(other.getTime()) == 0){
       return true;

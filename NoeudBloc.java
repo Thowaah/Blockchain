@@ -7,13 +7,18 @@ import java.util.Random;
 import java.math.MathContext;
 import java.util.Map;
 import java.util.HashMap;
+import java.rmi.* ;
+import java.net.MalformedURLException ;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+
 
 
 
 
 public class NoeudBloc
   extends UnicastRemoteObject
-  implements DistributedBC, InterfaceNoeudsBlocs
+  implements DistributedBC
 {
   private Vector<Integer> participantsInscrits;
   private Vector<BigDecimal> meriteParticipants;
@@ -25,9 +30,13 @@ public class NoeudBloc
   private Timer timer;
   private Random rand;
   private Map<Integer,String> voisins;
+  private int id;
+  private String monAdresse;
+
+//debug
 
 
-  public NoeudBloc() throws RemoteException{
+  public NoeudBloc(int _id, String _monAdresse) throws RemoteException, InterruptedException{
     super();
     transactionsAttente = new Vector<Transaction>();
     participantsInscrits = new Vector<Integer>();
@@ -36,35 +45,62 @@ public class NoeudBloc
     recompense = new BigDecimal("1");
     rand = new Random();
     ajouterBloc();
+    id = _id;
+    monAdresse = _monAdresse;
   }
   ///////////////fonctions distribuées nbloc -> nbloc///////////////////////////////////
-  public void hello(int id, String ip)
+  public String hello(int id, String ip)
     throws RemoteException
   {
+    System.out.println("Un noeud bloc me contacte ! ");
     if(!voisins.containsKey(new Integer(id))) {
       voisins.put(id, ip);
-    } else return;
+      System.out.println("Voisin ajouté");
+    }
+    return (id + " " + monAdresse);
   }
 
   public void transmettreTr(Transaction tr)
-    throws RemoteException
+    throws RemoteException, InterruptedException
   {
-    envoyerTransaction(tr);
+    System.out.println("Transaction reçu d'un noeud bloc" + tr);
+
+    //envoyerTransaction(tr);
     for(int i=0; i<transactionsAttente.size(); i++){
       if(transactionsAttente.elementAt(i).equals(tr)) return;
     }
+
     transactionsAttente.addElement(tr);
   }
 
   public void transmettreBloc(Bloc b)
     throws RemoteException
   {
+    System.out.println("Reception bloc d'un noeud bloc " + b.getHash());
+    //interromp recherche de bloc
     timer.cancel();
+    //on retire de notre file d'attente les transactions reçues
     nettoyerTrAttente(b);
     //verifier pour les doublons
-    bc.addBlock(b);
-    //transferer bloc aux voisins
-    envoyerBloc(b);
+    if(bc.dejaDansBC(b.getHash())){
+      System.out.println("Bloc déjà dans BC");
+      printBC();
+    } else {
+      bc.addBlock(b);
+      //transferer bloc aux voisins
+
+      try{
+        System.out.println("Bloc ajouté");
+        envoyerBloc(b);
+      } catch(InterruptedException ie){
+        System.out.println(ie);
+      }
+
+      //System.out.println("Bloc ajouté");
+      printBC();
+    }
+    //relancer recherche de bloc
+    ajouterBloc();
   }
 
   public Blockchain demandeBC()
@@ -113,7 +149,15 @@ public class NoeudBloc
 
 
     if(from==0){
-      transactionsAttente.addElement(new Transaction(from, to, montant.setScale(2, BigDecimal.ROUND_HALF_EVEN)));
+      Transaction tmpTr = new Transaction(from, to, montant.setScale(2, BigDecimal.ROUND_HALF_EVEN));
+      transactionsAttente.addElement(tmpTr);
+
+      try{
+        envoyerTransaction(tmpTr);
+      } catch(InterruptedException ie){
+        System.out.println(ie);
+      }
+
       System.out.println("Transaction ajoutée, de " + from + " à " + to + ", " + montant.setScale(2, BigDecimal.ROUND_HALF_EVEN).toString() + " points");
       //ajouterBloc();
       return true;
@@ -126,15 +170,22 @@ public class NoeudBloc
         break;
       }
       if(i==(participantsInscrits.size()-1)){
-        System.out.println("Participant non inscrit, regus tr");
+        System.out.println("Participant non inscrit, refus tr");
         return false;
       }
     }
       //System.out.println("Else");
     if(bc.getPoints(from).compareTo(montant) >= 0) {
       //System.out.println("RValue= " + r);
+      Transaction tmpTr = new Transaction(from, to, montant.setScale(2, BigDecimal.ROUND_HALF_EVEN));
+      transactionsAttente.addElement(tmpTr);
 
-      transactionsAttente.addElement(new Transaction(from, to, montant.setScale(2, BigDecimal.ROUND_HALF_EVEN)));
+      try{
+        envoyerTransaction(tmpTr);
+      } catch(InterruptedException ie){
+        System.out.println(ie);
+      }
+
       System.out.println("Transaction ajoutée, de " + from + " à " + to + ", " + montant.setScale(2, BigDecimal.ROUND_HALF_EVEN).toString() + " points");
       //ajouterBloc();
 
@@ -183,18 +234,18 @@ public class NoeudBloc
 
   /////////////////fonctions propres/////////////////////////////
 
-  //pas forcement utile, verbeux pour rien, juste mettre contenu dans ajouter bloc
   public Bloc creerBloc()
     throws RemoteException
   {
     if(transactionsAttente.size()==0){
       return null;
     }
-    distribuerRecompense(recompense);
+    //distribuerRecompense(recompense);
     Bloc b = bc.addBlock(transactionsAttente);
-    distribuerRecompense(recompense);
     transactionsAttente.clear();
-    transmettreBloc(b);
+    try{
+      envoyerBloc(b);
+    } catch(InterruptedException ie){System.out.println(ie);}
     System.out.println("Nouveau bloc");
     printBC();
     return b;
@@ -211,19 +262,43 @@ public class NoeudBloc
     return true;
   }
 
-  private void envoyerTransaction(Transaction tr){
+  private void envoyerTransaction(Transaction tr)
+    throws RemoteException, InterruptedException
+  {
     //envoyer la transaction aux voisins
-    for(int i = 0; i<voisins.size(); i++){
+    for(Map.Entry<Integer, String> entry : voisins.entrySet()){
+      //catch quand un noeud n'est pas connecté ?
       //se connecter à chacun et appeler le methode transmettreTr
+      try{
+        DistributedBC bcd = (DistributedBC) Naming.lookup("rmi://"+ entry.getValue() + "/DistributedBC");
+
+        //nb = (InterfaceNoeudsBlocs) Naming.lookup("rmi://" + entry.getValue() + "/InterfaceNoeudsBlocs");
+        bcd.transmettreTr(tr);
+      } catch(NotBoundException e){
+        System.out.println("Problème de binding !\n"+e);
+        System.exit(1);
+     } catch(MalformedURLException e){ System.out.println(e);}
     }
   }
 
-  private void envoyerBloc(Bloc b){
-    //envoyer nouveau bloc créer aux autres noeuds
-    for(int i = 0; i<voisins.size(); i++){
-      //se connecter à chacun et appeler le methode transmettreBloc
+  private void envoyerBloc(Bloc b)
+    throws RemoteException, InterruptedException
+    {
+      //envoyer la transaction aux voisins
+      for(Map.Entry<Integer, String> entry : voisins.entrySet()){
+        //catch quand un noeud n'est pas connecté ?
+        //se connecter à chacun et appeler le methode transmettreTr
+        try{
+          DistributedBC bcd = (DistributedBC) Naming.lookup("rmi://"+ entry.getValue() + "/DistributedBC");
+
+          //nb = (InterfaceNoeudsBlocs) Naming.lookup("rmi://" + entry.getValue() + "/InterfaceNoeudsBlocs");
+          bcd.transmettreBloc(b);
+        } catch(NotBoundException e){
+          System.out.println("Problème de binding !\n"+e);
+          System.exit(1);
+       } catch(MalformedURLException e){ System.out.println(e);}
+      }
     }
-  }
 
   //fonction pour ajouter un bloc tous les random secondes ou autre
   public void ajouterBloc(){
@@ -250,11 +325,17 @@ public class NoeudBloc
       for(int j = 0; j<transactionsAttente.size(); j++){
         if(trBloc.elementAt(i).equals(transactionsAttente.elementAt(j))){
           suppr.addElement(j);
+          System.out.println("Transaction identique... Suppression");
         }
       }
     }
     for(int i=0; i<suppr.size();i++){
-      transactionsAttente.remove(suppr.elementAt(i));
+      try{
+        transactionsAttente.remove((int) suppr.elementAt(i));
+      } catch (ArrayIndexOutOfBoundsException ae){
+        System.out.println("/!\\ Exception dans le nettoyage des transactions\n Désynchronisation de la BC possible !");
+        System.err.println("/!\\ Exception dans le nettoyage des transactions\n"+ae);
+      }
     }
   }
 
